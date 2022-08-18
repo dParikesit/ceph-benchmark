@@ -1,9 +1,11 @@
 #include <iostream>
 #include <string>
 #include <rados/librados.hpp>
+#include <chrono>
 
 int main(int argc, const char** argv) {
-
+    int object_count=2000;
+    
     int ret = 0;
 
     /* Declare the cluster handle and required variables. */
@@ -69,123 +71,104 @@ int main(int argc, const char** argv) {
         }
     }
 
+    // int blockSizeArr[] = { 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288,  1048576,  2097152 ,4194304 ,8388608 , 16777216 };
+    int blockSizeArr[11] = { 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288,  1048576,  2097152 ,4194304 };
 
-    librados::bufferlist bl;
-    
-    /* Write an object synchronously. */
-    {
-        bl.append("Hello World!");
-        int read_len = bl.length();
-        ret = io_ctx.write("hw", bl, read_len, 0);
-        if (ret < 0) {
-            std::cerr << "Couldn't write object! error " << ret << std::endl;
-            exit(EXIT_FAILURE);
-        } else {
-            std::cout << "Wrote new object 'hw' " << std::endl;
-        }
-    }
+    for(int i=0; i<11; i++){
+        int object_size = blockSizeArr[i];
 
+        std::cout << std::endl;
+        std::cout<<object_size<<std::endl;
 
-    /*
-     * Add an xattr to the object.
-     */
-     // {
-     //     librados::bufferlist lang_bl;
-     //     lang_bl.append("en_US");
-     //     ret = io_ctx.setxattr("hw", "lang", lang_bl);
-     //     if (ret < 0) {
-     //         std::cerr << "failed to set xattr version entry! error "
-     //             << ret << std::endl;
-     //         exit(EXIT_FAILURE);
-     //     } else {
-     //         std::cout << "Set the xattr 'lang' on our object!" << std::endl;
-     //     }
-     // }
+        int64_t write[object_count];
+        int64_t read[object_count];
+        int64_t del[object_count];
+        
+        for(int j=0; j<object_count; j++){
+            librados::bufferlist bl;
+            bl.clear();
 
+            char data[j];
+            std::string object_name = "bench"+std::to_string(j);
 
+            /* Write an object synchronously. */
+            {
+                bl.append(data);
 
-     /*
-      * Read the object back asynchronously.
-      */
-    {
-        int read_len = bl.length();
-        bl.clear();
+                auto start = std::chrono::high_resolution_clock::now();
+                ret = io_ctx.write_full(object_name, bl);
+                auto stop = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
-        //Create I/O Completion.
-        // librados::AioCompletion* read_completion = librados::Rados::aio_create_completion();
-
-        //Send read request.
-        // ret = io_ctx.aio_read("hw", read_completion, &read_buf, read_len, 0);
-        // if (ret < 0) {
-        //     std::cerr << "Couldn't start read object! error " << ret << std::endl;
-        //     exit(EXIT_FAILURE);
-        // }
-
-        ret = io_ctx.read("hw", bl, read_len, 0);
-        if (ret < 0) {
-            std::cerr << "Couldn't start read object! error " << ret << std::endl;
-            exit(EXIT_FAILURE);
-        } else {
-            std::cout << "Read object hw synchronously with contents.\n"
-                << bl.c_str() << std::endl;
+                if (ret < 0) {
+                    std::cerr << "Couldn't write object! error " << ret << std::endl;
+                    exit(EXIT_FAILURE);
+                } else{
+                    write[j] = duration.count();
+                }
+            }
         }
 
+        for (int j = 0; j < object_count; j++) {
+            librados::bufferlist bl;
+            bl.clear();
 
-        // Wait for the request to complete, and check that it succeeded.
-        // read_completion->wait_for_complete();
-        // ret = read_completion->get_return_value();
-        // if (ret < 0) {
-        //     std::cerr << "Couldn't read object! error " << ret << std::endl;
-        //     exit(EXIT_FAILURE);
-        // } else {
-        //     std::cout << "Read object hw asynchronously with contents.\n"
-        //         << read_buf.c_str() << std::endl;
-        // }
-    }
+            char data[j];
+            std::string object_name = "bench" + std::to_string(j);
 
+            /*
+             * Read the object back synchronously.
+             */
+            {
+                auto start = std::chrono::high_resolution_clock::now();
+                ret = io_ctx.read(object_name, bl, object_size, 0);
+                auto stop = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
-    /*
-     * Read the xattr.
-     */
-     // {
-     //     librados::bufferlist lang_res;
-     //     ret = io_ctx.getxattr("hw", "lang", lang_res);
-     //     if (ret < 0) {
-     //         std::cerr << "failed to get xattr version entry! error "
-     //             << ret << std::endl;
-     //         exit(EXIT_FAILURE);
-     //     } else {
-     //         std::cout << "Got the xattr 'lang' from object hw!"
-     //             << lang_res.c_str() << std::endl;
-     //     }
-     // }
-
-
-     /*
-      * Remove the xattr.
-      */
-      // {
-      //     ret = io_ctx.rmxattr("hw", "lang");
-      //     if (ret < 0) {
-      //         std::cerr << "Failed to remove xattr! error "
-      //             << ret << std::endl;
-      //         exit(EXIT_FAILURE);
-      //     } else {
-      //         std::cout << "Removed the xattr 'lang' from our object!" << std::endl;
-      //     }
-      // }
-
-      /*
-       * Remove the object.
-       */
-    {
-        ret = io_ctx.remove("hw");
-        if (ret < 0) {
-            std::cerr << "Couldn't remove object! error " << ret << std::endl;
-            exit(EXIT_FAILURE);
-        } else {
-            std::cout << "Removed object 'hw'." << std::endl;
+                if (ret < 0) {
+                    std::cerr << "Couldn't start read object! error " << ret << std::endl;
+                    exit(EXIT_FAILURE);
+                } else {
+                    read[j] = duration.count();
+                }
+            }
         }
+
+        for (int j = 0; j < object_count; j++) {
+            std::string object_name = "bench" + std::to_string(j);
+
+            /*
+             * Remove the object.
+             */
+            {
+                auto start = std::chrono::high_resolution_clock::now();
+                ret = io_ctx.remove(object_name);
+                auto stop = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+
+                if (ret < 0) {
+                    std::cerr << "Couldn't remove object! error " << ret << std::endl;
+                    exit(EXIT_FAILURE);
+                } else {
+                    del[j] = duration.count();
+                }
+            }
+        }
+
+        int64_t writeTotal = 0;
+        int64_t readTotal = 0;
+        int64_t delTotal = 0;
+
+        for(int j=0; j<object_count; j++){
+            writeTotal += write[j];
+            readTotal += read[j];
+            delTotal += del[j];
+        }
+
+        std::cout << "Write avg = " << float(writeTotal) / float(object_count) << std::endl;
+        std::cout << "Read avg = " << float(readTotal) / float(object_count) << std::endl;
+        std::cout << "Delete avg = " << float(delTotal) / float(object_count) << std::endl;
+        std::cout<<std::endl;
     }
 
     io_ctx.close();
