@@ -98,7 +98,7 @@ int main(int argc, const char** argv) {
                 auto start = std::chrono::high_resolution_clock::now();
                 ret = io_ctx.write_full(object_name, bl);
                 auto stop = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
 
                 if (ret < 0) {
                     std::cerr << "Couldn't write object! error " << ret << std::endl;
@@ -123,7 +123,7 @@ int main(int argc, const char** argv) {
                 auto start = std::chrono::high_resolution_clock::now();
                 ret = io_ctx.read(object_name, bl, object_size, 0);
                 auto stop = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
 
                 if (ret < 0) {
                     std::cerr << "Couldn't start read object! error " << ret << std::endl;
@@ -144,7 +144,7 @@ int main(int argc, const char** argv) {
                 auto start = std::chrono::high_resolution_clock::now();
                 ret = io_ctx.remove(object_name);
                 auto stop = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
 
                 if (ret < 0) {
                     std::cerr << "Couldn't remove object! error " << ret << std::endl;
@@ -165,9 +165,9 @@ int main(int argc, const char** argv) {
             delTotal += del[j];
         }
 
-        std::cout << "Write avg = " << float(writeTotal) / float(object_count) << std::endl;
-        std::cout << "Read avg = " << float(readTotal) / float(object_count) << std::endl;
-        std::cout << "Delete avg = " << float(delTotal) / float(object_count) << std::endl;
+        std::cout << "Write avg = " << float(writeTotal) / float(object_count *1000) << std::endl;
+        std::cout << "Read avg = " << float(readTotal) / float(object_count *1000) << std::endl;
+        std::cout << "Delete avg = " << float(delTotal) / float(object_count*1000) << std::endl;
         std::cout<<std::endl;
     }
 
